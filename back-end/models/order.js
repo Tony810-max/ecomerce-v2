@@ -1,54 +1,43 @@
 const mongoose = require("mongoose");
 
-const oderSchema = mongoose.Schema({
-  orderItems: [
-    {
+const oderSchema = mongoose.Schema(
+  {
+    cartItems: {
       type: mongoose.Schema.Types.ObjectId,
-      ref: "OrderItem",
+      ref: "Cart",
       required: true,
     },
-  ],
-  shippingAddress1: {
-    type: String,
-    required: true,
+    shippingAddress: {
+      type: String,
+      required: true,
+    },
+
+    phone: {
+      type: String,
+      required: true,
+    },
+    address: {
+      type: String,
+      required: true,
+    },
+    status: {
+      type: String,
+      default: "Pending",
+    },
+    totalPrice: {
+      type: Number,
+      required: true,
+    },
+    user: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "User",
+      required: true,
+    },
   },
-  shippingAddress2: {
-    type: String,
-  },
-  phone: {
-    type: String,
-    required: true,
-  },
-  zip: {
-    type: String,
-    default: "",
-  },
-  city: {
-    type: String,
-    default: "",
-  },
-  country: {
-    type: String,
-    default: "",
-  },
-  status: {
-    type: String,
-    default: "Pending",
-  },
-  totalPrice: {
-    type: Number,
-    required: true,
-  },
-  user: {
-    type: mongoose.Schema.Types.ObjectId,
-    ref: "User",
-    required: true,
-  },
-  dateOrdered: {
-    type: Date,
-    default: Date.now(),
-  },
-});
+  {
+    timestamps: true,
+  }
+);
 
 oderSchema.virtual("id").get(function () {
   return this._id.toHexString();
