@@ -1,14 +1,16 @@
 const { Cart } = require("../models/cart");
+const { Product } = require("../models/product");
 
 const express = require("express");
 const router = express.Router();
+const returnResponse = require("../helper/response");
 
 // Thêm mục vào giỏ hàng
 router.post("/:idProduct", async (req, res) => {
   const idProduct = req.params.idProduct;
   const userId = req.body.userId;
 
-  let cart = await Cart.findOne({ user: userId });
+  let cart = await Cart.findOne({ user: userId, deleteAt: null });
 
   if (!cart) {
     cart = new Cart({
@@ -28,26 +30,73 @@ router.post("/:idProduct", async (req, res) => {
   }
 
   cart = await cart.save();
-  return res.send(cart);
+  return returnResponse(res, 200, { message: "Product Added To Cart" });
+});
+
+//add all to bag
+router.post("/wishlist/:idUser", async (req, res) => {
+  const idUser = req.params.idUser;
+  let wishlistProducts = await Product.find({ wishlist: idUser });
+
+  if (!wishlistProducts || wishlistProducts.length === 0) {
+    return returnResponse(res, 404, {
+      message: "No products found in wishlist",
+    });
+  }
+
+  let cart = await Cart.findOne({ user: idUser });
+
+  if (!cart) {
+    cart = new Cart({
+      user: idUser,
+      items: wishlistProducts.map((product) => ({
+        product: product._id,
+        quantity: 1,
+      })),
+    });
+  } else {
+    wishlistProducts.forEach((product) => {
+      const productIndex = cart.items.findIndex(
+        (item) => item.product.toString() === product._id.toString()
+      );
+
+      if (productIndex > -1) {
+        cart.items[productIndex].quantity += 1;
+      } else {
+        cart.items.push({ product: product._id, quantity: 1 });
+      }
+    });
+  }
+
+  cart = await cart.save();
+
+  await Product.updateMany(
+    { wishlist: idUser },
+    { $pull: { wishlist: idUser } }
+  );
+
+  return returnResponse(res, 200, {
+    message: "All wishlist products added to cart",
+  });
 });
 
 router.get("/", async (req, res) => {
-  const carts = await Cart.find().populate("user", "-passwordHash");
-  // .populate({
-  //   path: "items",
-  //   populate: {
-  //     path: "product",
-  //     populate: "category",
-  //   },
-  // });
-  if (!carts) return res.send("Cart not found");
-
-  res.send(carts);
+  const carts = await Cart.find()
+    .populate("user", "-password")
+    .populate({
+      path: "items",
+      populate: {
+        path: "product",
+        populate: "category",
+      },
+    });
+  if (!carts) return returnResponse(res, 404, { message: "Cart not found" });
+  returnResponse(res, 200, { carts: carts });
 });
 
 // Lấy giỏ hàng của người dùng
 router.get("/me/:userId", async (req, res) => {
-  const cart = await Cart.findOne({ user: req.params.userId })
+  const cart = await Cart.findOne({ user: req.params.userId, deleteAt: null })
     .populate("user", "id")
     .populate({
       path: "items",

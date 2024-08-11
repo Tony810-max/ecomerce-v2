@@ -1,25 +1,17 @@
-const { returnResponse } = require("../helper/response");
+const returnResponse = require("../helper/response");
 const { Category } = require("../models/category");
 const express = require("express");
-
 const router = express.Router();
 
 //get category list
 router.get("/", async (req, res) => {
-  try {
-    const categoryList = await Category.find();
+  const categoryList = await Category.find();
 
-    if (!categoryList) {
-      return returnResponse(res, 404, { message: "No data" });
-    }
-
-    return returnResponse(res, 200, categoryList);
-  } catch (error) {
-    return returnResponse(res, 500, {
-      error: error,
-      success: false,
-    });
+  if (!categoryList) {
+    return returnResponse(res, 404, { message: "No data" });
   }
+
+  return returnResponse(res, 200, categoryList);
 });
 
 //get category details
@@ -65,7 +57,6 @@ router.put("/:id", async (req, res) => {
     }
   );
 
-  
   if (!category) return res.status(404).send("The category cannot be found");
 
   res.status(200).send(category);

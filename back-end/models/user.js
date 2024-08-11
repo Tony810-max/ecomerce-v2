@@ -9,7 +9,7 @@ const userchema = mongoose.Schema({
     type: String,
     required: true,
   },
-  passwordHash: {
+  password: {
     type: String,
     required: true,
   },
@@ -17,23 +17,7 @@ const userchema = mongoose.Schema({
     type: String,
     required: true,
   },
-  zip: {
-    type: String,
-    default: "",
-  },
-  city: {
-    type: String,
-    default: "",
-  },
-  country: {
-    type: String,
-    default: "",
-  },
-  apartment: {
-    type: String,
-    default: "",
-  },
-  street: {
+  address: {
     type: String,
     default: "",
   },

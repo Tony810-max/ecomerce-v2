@@ -13,6 +13,7 @@ interface ILabelInput {
   register: UseFormRegister<any>;
   name: string;
   errors: FieldErrors<any>;
+  className?: string;
 }
 
 const LabelInput: React.FC<ILabelInput> = ({
@@ -23,12 +24,13 @@ const LabelInput: React.FC<ILabelInput> = ({
   register,
   name,
   errors,
+  className,
 }) => {
   const errorMessage = errors[name]?.message
     ? String(errors[name]?.message)
     : null;
   return (
-    <>
+    <div className={`space-y-2 ${className}`}>
       <div className="space-y-2">
         <Label required={required} className="font-sans text-base">
           {label}
@@ -45,7 +47,7 @@ const LabelInput: React.FC<ILabelInput> = ({
           {errorMessage}
         </p>
       )}
-    </>
+    </div>
   );
 };
 

@@ -1,13 +1,11 @@
 "use client";
+import { useGetUser } from "@/hooks/useGetUser";
 import ROUTES from "@/types/routes";
 import Link from "next/link";
 import React from "react";
 
 const RoutePage = () => {
-  const user =
-    typeof window !== "undefined"
-      ? JSON.parse(localStorage.getItem("user") || "null")
-      : null;
+  const { user } = useGetUser();
 
   return (
     <div className="space-x-12 py-2">

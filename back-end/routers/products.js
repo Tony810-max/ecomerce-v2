@@ -1,10 +1,12 @@
 const { Product } = require("../models/product");
 const { Category } = require("../models/category");
-
 const express = require("express");
 const router = express.Router();
 const mongoose = require("mongoose");
 const multer = require("multer");
+const fs = require("fs");
+const path = require("path");
+const returnResponse = require("../helper/response");
 
 const FILE_TYPE_MAP = {
   "image/png": "png",
@@ -92,10 +94,6 @@ router.post("/", uploadOptions.single("image"), async (req, res) => {
     salePercent: salePercent,
     category: req.body.category,
     countInStock: req.body.countInStock,
-    rating: req.body.rating,
-    numReview: req.body.numReview,
-    isFeatured: req.body.isFeatured,
-    isSale: req.body.isSale,
   });
 
   product = await product.save();
@@ -119,16 +117,11 @@ router.put("/:id", async (req, res) => {
     {
       name: req.body.name,
       description: req.body.description,
-      richDescription: req.body.richDescription,
       image: req.body.image,
-      brand: req.body.brand,
       price: req.body.price,
       category: req.body.category,
       countInStock: req.body.countInStock,
-      rating: req.body.rating,
       numReview: req.body.numReview,
-      isFeatured: req.body.isFeatured,
-      dateUpdated: Date.now(),
     },
     {
       new: true,
@@ -138,23 +131,37 @@ router.put("/:id", async (req, res) => {
   res.status(200).send(product);
 });
 
-// Xóa sản phẩm
-router.delete("/:id", (req, res) => {
-  Product.findByIdAndDelete(req.params.id)
-    .then((product) => {
-      if (product) {
+// Xóa sản phẩm và ảnh
+router.delete("/:id", async (req, res) => {
+  try {
+    const product = await Product.findById(req.params.id);
+
+    if (product) {
+      const imagePath = product.image.replace(
+        `${req.protocol}://${req.get("host")}/`,
+        ""
+      );
+
+      // Xóa ảnh
+      fs.unlink(path.join(__dirname, "../", imagePath), async (err) => {
+        if (err) {
+          return res.status(500).json({ success: false, error: err });
+        }
+
+        // Xóa sản phẩm sau khi ảnh đã xóa thành công
+        await Product.findByIdAndDelete(req.params.id);
         return res
           .status(200)
-          .json({ success: true, message: "the product is deleted" });
-      } else {
-        return res
-          .status(404)
-          .json({ success: false, message: "product not found" });
-      }
-    })
-    .catch((err) => {
-      return res.status(400).json({ success: false, error: err });
-    });
+          .json({ success: true, message: "The product is deleted" });
+      });
+    } else {
+      return res
+        .status(404)
+        .json({ success: false, message: "Product not found" });
+    }
+  } catch (err) {
+    return res.status(400).json({ success: false, error: err });
+  }
 });
 
 // Đếm số lượng sản phẩm
@@ -183,7 +190,7 @@ router.get("/get/featured/:count", async (req, res) => {
 
 router.put(
   "/gallery/:id",
-  uploadOptions.array("images", 5),
+  uploadOptions.array("images", 4),
   async (req, res) => {
     if (!mongoose.isValidObjectId(req.params.id))
       return res.status(400).send("Invalid product id");
@@ -206,8 +213,57 @@ router.put(
       }
     );
     if (!product) return res.status(500).send("The product cannot be updated");
-    res.status(200).send(product);
+    returnResponse(res, 200, { message: "Product updated successfully" });
   }
 );
+
+//create wishlish
+router.patch("/wishlist/:idProduct", async (req, res) => {
+  const idProduct = req.params.idProduct;
+  const product = await Product.findById(idProduct);
+  const userId = req.body.userId;
+  const checkProductWishlist = product?.wishlist?.includes(userId);
+
+  if (!product)
+    return returnResponse(res, 404, { message: "Product not found" });
+
+  if (checkProductWishlist) {
+    return returnResponse(res, 400, { message: "Product already in wishlist" });
+  }
+
+  const productNew = await Product.findByIdAndUpdate(
+    { _id: idProduct },
+    {
+      $push: { wishlist: userId },
+    },
+    {
+      new: true,
+    }
+  );
+  returnResponse(res, 200, {
+    message: "Product added to wishlist",
+    productNew: productNew,
+  });
+});
+
+//delete wishlist
+router.delete("/wishlist/:idProduct", async (req, res) => {
+  const idProduct = req.params.idProduct;
+  const userId = req.body.userId;
+
+  const result = await Product.updateOne(
+    { _id: idProduct },
+    {
+      $pull: { wishlist: userId },
+    }
+  );
+
+  if (result.modifiedCount === 0) {
+    return returnResponse(res, 404, {
+      message: "No wishlist item found to delete",
+    });
+  }
+  returnResponse(res, 200, { message: "Cart item deleted successfully" });
+});
 
 module.exports = router;

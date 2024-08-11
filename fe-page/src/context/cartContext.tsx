@@ -1,41 +1,51 @@
 "use client";
 import React, { createContext, useState, useMemo, useEffect } from "react";
 import axios from "../util/axios.customize";
-import { API_URL, ICart } from "@/types/common";
+import { API_URL, ICartMain } from "@/types/common";
+import { useGetUser } from "@/hooks/useGetUser";
 
 interface ICartContext {
-  dataCart: ICart[] | undefined;
+  dataCart: ICartMain | null;
   setSubTotal: React.Dispatch<React.SetStateAction<number | null>>;
   subTotal: number | null;
   fetchCartUser: () => void;
+  methodOrder: string;
+  setMethodOrder: React.Dispatch<React.SetStateAction<string>>;
+  isLoading: boolean;
 }
 
 export const CartContext = createContext<ICartContext>({
-  dataCart: [],
+  dataCart: null,
   setSubTotal: () => {},
   subTotal: null,
   fetchCartUser: () => {},
+  methodOrder: "cash",
+  setMethodOrder: () => {},
+  isLoading: false,
 });
 
 export const CartProvider = ({ children }: { children: React.ReactNode }) => {
-  const [dataCart, setDataCart] = useState<ICart[]>();
+  const [dataCart, setDataCart] = useState<ICartMain | null>(null);
+  const [isLoading, setIsLoading] = React.useState<boolean>(true);
   const [subTotal, setSubTotal] = useState<number | null>(null);
-  const user =
-    typeof window !== "undefined"
-      ? JSON.parse(localStorage.getItem("user") || "null")
-      : null;
+  const [methodOrder, setMethodOrder] = React.useState<string>("cash");
+
+  const { user } = useGetUser();
 
   const fetchCartUser = async () => {
     try {
+      setIsLoading(true);
       const response = await axios.get(
         `${API_URL}/api/v1/carts/me/${user?._id}`
       );
 
       if (response) {
-        setDataCart(response?.data?.items);
+        setDataCart(response?.data);
       }
     } catch (error) {
       console.error(error);
+    } finally {
+      setIsLoading(false);
     }
   };
 
@@ -44,9 +54,11 @@ export const CartProvider = ({ children }: { children: React.ReactNode }) => {
   }, []);
 
   const calculatedSubTotal = useMemo(() => {
-    if (dataCart) {
-      const initialQuantities = dataCart.map((cart) => cart?.quantity || 0);
-      return dataCart.reduce((total, product, index) => {
+    if (dataCart?.items) {
+      const initialQuantities = dataCart?.items.map(
+        (cart) => cart?.quantity || 0
+      );
+      return dataCart?.items.reduce((total, product, index) => {
         const price =
           product?.product?.discount ?? product?.product?.priceOrigin;
         return total + price * initialQuantities[index];
@@ -65,8 +77,19 @@ export const CartProvider = ({ children }: { children: React.ReactNode }) => {
       setSubTotal,
       subTotal,
       fetchCartUser,
+      methodOrder,
+      setMethodOrder,
+      isLoading,
     };
-  }, [dataCart, subTotal, setSubTotal, fetchCartUser]);
+  }, [
+    dataCart,
+    subTotal,
+    setSubTotal,
+    fetchCartUser,
+    methodOrder,
+    setMethodOrder,
+    isLoading,
+  ]);
 
   return (
     <CartContext.Provider value={context}>{children}</CartContext.Provider>

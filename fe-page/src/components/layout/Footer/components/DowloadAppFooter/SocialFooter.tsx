@@ -6,22 +6,22 @@ const SocialFooter = () => {
     <div className="flex gap-1">
       <ImageFooter
         altImg="Icon-Facebook"
-        srcImg="images/HomePage/Icon-Facebook.webp"
+        srcImg="/images/HomePage/Icon-Facebook.webp"
         className="w-full h-5"
       />
       <ImageFooter
         altImg="icon-instagram"
-        srcImg="images/HomePage/icon-instagram.webp"
+        srcImg="/images/HomePage/icon-instagram.webp"
         className="w-full h-5"
       />
       <ImageFooter
         altImg="Icon-Linkedin"
-        srcImg="images/HomePage/Icon-Linkedin.webp"
+        srcImg="/images/HomePage/Icon-Linkedin.webp"
         className="w-full h-5"
       />
       <ImageFooter
         altImg="Icon-Twitter"
-        srcImg="images/HomePage/Icon-Twitter.webp"
+        srcImg="/images/HomePage/Icon-Twitter.webp"
         className="w-full h-5"
       />
     </div>

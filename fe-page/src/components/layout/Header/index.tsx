@@ -1,11 +1,15 @@
 "use client";
 import React from "react";
 import { Input } from "@/components/ui/input";
-import { Heart, ShoppingCart } from "lucide-react";
+import dynamic from "next/dynamic";
 import Link from "next/link";
+import { Heart, ShoppingCart } from "lucide-react";
+
 import ROUTES from "@/types/routes";
 import DropdownUser from "./components/DropdownUser";
-import dynamic from "next/dynamic";
+import { CartContext } from "@/context/cartContext";
+import { ProductContext } from "@/context/productContex";
+import { useGetUser } from "@/hooks/useGetUser";
 
 const RoutePage = dynamic(() => import("./components/RoutePage"), {
   ssr: false,
@@ -14,10 +18,13 @@ const RoutePage = dynamic(() => import("./components/RoutePage"), {
 const Header = () => {
   const [check, setCheck] = React.useState(false);
 
-  const user =
-    typeof window !== "undefined"
-      ? JSON.parse(localStorage.getItem("user") || "null")
-      : null;
+  const { user } = useGetUser();
+
+  const cartContext = React.useContext(CartContext);
+  const productContext = React.useContext(ProductContext);
+
+  const dataCart = cartContext?.dataCart?.items;
+  const dataWislist = productContext?.wishlistMe;
 
   React.useEffect(() => {
     if (user) {
@@ -25,7 +32,7 @@ const Header = () => {
     } else {
       setCheck(false);
     }
-  }, []);
+  }, [user]);
 
   return (
     <div className="container flex items-center justify-between pt-10 pb-4">
@@ -39,10 +46,20 @@ const Header = () => {
         {check ? (
           <div className="flex gap-4">
             <Link href={ROUTES.WISHLIST} className="hover:opacity-50">
-              <Heart />
+              <div className="relative">
+                <Heart />
+                <span className="absolute -top-1 -right-2 text-xs font-bold text-white bg-[#f8312f] px-1 rounded-full">
+                  {dataWislist?.length}
+                </span>
+              </div>
             </Link>
             <Link href={ROUTES.CART} className="hover:opacity-50">
-              <ShoppingCart />
+              <div className="relative">
+                <ShoppingCart />
+                <span className="absolute -top-1 -right-2 text-xs font-bold text-white bg-[#f8312f] px-1 rounded-full">
+                  {dataCart?.length}
+                </span>
+              </div>
             </Link>
             <DropdownUser />
           </div>

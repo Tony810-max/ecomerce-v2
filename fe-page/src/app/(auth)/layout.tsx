@@ -2,15 +2,13 @@
 import ROUTES from "@/types/routes";
 import { useRouter } from "next/navigation";
 import React from "react";
+import { useGetUser } from "../../hooks/useGetUser";
 
 const layout = ({ children }: { children: React.ReactNode }) => {
   const router = useRouter();
-  React.useEffect(() => {
-    const user =
-      typeof window !== "undefined"
-        ? JSON.parse(localStorage.getItem("user") || "null")
-        : null;
+  const { user } = useGetUser();
 
+  React.useEffect(() => {
     if (user) return router.replace(ROUTES.HOME);
   }, []);
   return <>{children}</>;

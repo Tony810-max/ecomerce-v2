@@ -4,11 +4,12 @@ const express = require("express");
 const router = express.Router();
 const bcrypt = require("bcryptjs");
 const jwt = require("jsonwebtoken");
+const returnResponse = require("../helper/response");
 
 //get user list
 router.get("/", async (req, res) => {
   try {
-    const userList = await User.find().select("-passwordHash");
+    const userList = await User.find().select("-password");
 
     if (!userList) return res.status(404).json({ message: "No data" });
 
@@ -23,7 +24,7 @@ router.get("/", async (req, res) => {
 
 //get user by id
 router.get("/:id", async (req, res) => {
-  const user = await User.findById(req.params.id).select("-passwordHash");
+  const user = await User.findById(req.params.id).select("-password");
 
   if (!user)
     return res.status(404).json({ message: "The user does not exist" });
@@ -49,7 +50,7 @@ router.post("/register", async (req, res) => {
   let user = new User({
     name: req.body.name,
     email: req.body.email,
-    passwordHash: bcrypt.hashSync(req.body.password, 10),
+    password: bcrypt.hashSync(req.body.password, 10),
     phone: req.body.phone,
     isAdmin: req.body.isAdmin,
   });
@@ -65,9 +66,9 @@ router.post("/login", async (req, res) => {
   const user = await User.findOne({ email: req.body.email });
   const secret = process.env.secret;
 
-  if (!user) return res.status(400).send("User not found");
-
-  if (user && bcrypt.compareSync(req.body.password, user.passwordHash)) {
+  if (!user) return returnResponse(res, 400, { message: "User not found" });
+  console.log(user.password);
+  if (user && bcrypt.compareSync(req.body.password, user.password)) {
     const token = jwt.sign(
       {
         userId: user.id,
@@ -81,14 +82,14 @@ router.post("/login", async (req, res) => {
 
     const userWithoutPasswordHash = {
       ...user.toObject(),
-      passwordHash: null,
+      password: null,
     };
 
     console.log(user);
 
-    return res.status(200).send({ user: userWithoutPasswordHash, token });
+    return returnResponse(res, 200, { user: userWithoutPasswordHash, token });
   } else {
-    res.status(400).send("Password is wrong");
+    returnResponse(res, 400, { message: "email or password is wrong" });
   }
 });
 
@@ -120,6 +121,82 @@ router.delete("/:id", (req, res) => {
     .catch((err) => {
       return res.status(400).json({ success: false, error: err });
     });
+});
+
+router.patch("/updateProfile/:idUser", async (req, res) => {
+  const idUSer = req.params.idUser;
+  const phoneUSer = req.body.phone;
+
+  const findUser = await User.findById(idUSer);
+  if (!findUser) return returnResponse(res, 404, { message: "user not found" });
+
+  const findPhoneUser = await User.findOne({ phone: phoneUSer });
+
+  if (findPhoneUser)
+    return returnResponse(res, 404, { message: "Phone user is already" });
+
+  const updatedUser = await User.findByIdAndUpdate(
+    idUSer,
+    { $set: req.body },
+    { new: true }
+  );
+
+  await updatedUser.save();
+
+  if (!updatedUser)
+    return returnResponse(res, 500, { message: "Update failed" });
+
+  return returnResponse(res, 200, {
+    message: "User updated successfully",
+    user: updatedUser,
+  });
+});
+
+router.patch("/change-password/:idUser", async (req, res) => {
+  try {
+    const idUser = req.params.idUser;
+    const { oldPassword, newPassword } = req.body;
+
+    if (!oldPassword || !newPassword) {
+      return returnResponse(res, 400, { message: "Missing passwords" });
+    }
+
+    const findUser = await User.findById(idUser);
+
+    if (!findUser) {
+      return returnResponse(res, 404, { message: "User not found" });
+    }
+
+    const validPassword = await bcrypt.compare(oldPassword, findUser.password);
+
+    if (!validPassword) {
+      return returnResponse(res, 404, { message: "Password incorrect" });
+    }
+
+    const hashedNewPassword = await bcrypt.hash(newPassword, 10);
+
+    let updateUser = await User.findOneAndUpdate(
+      { _id: idUser },
+      {
+        password: hashedNewPassword,
+      },
+      {
+        new: true,
+      }
+    );
+
+    if (!updateUser) {
+      return returnResponse(res, 500, { message: "Update failed" });
+    }
+
+    return returnResponse(res, 200, {
+      message: "Password changed successfully",
+      user: updateUser,
+    });
+  } catch (error) {
+    console.error(error);
+    return returnResponse(res, 500, { message: "Internal server error" });
+  }
 });
 
 module.exports = router;

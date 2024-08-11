@@ -7,16 +7,16 @@ const oderSchema = mongoose.Schema(
       ref: "Cart",
       required: true,
     },
-    shippingAddress: {
-      type: String,
-      required: true,
-    },
 
     phone: {
       type: String,
       required: true,
     },
     address: {
+      type: String,
+      required: true,
+    },
+    name: {
       type: String,
       required: true,
     },
@@ -32,6 +32,10 @@ const oderSchema = mongoose.Schema(
       type: mongoose.Schema.Types.ObjectId,
       ref: "User",
       required: true,
+    },
+    deleteAt: {
+      type: Date,
+      default: null,
     },
   },
   {

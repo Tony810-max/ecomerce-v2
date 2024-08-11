@@ -20,6 +20,10 @@ const cartSchema = mongoose.Schema({
       },
     },
   ],
+  deleteAt: {
+    type: Date,
+    default: null,
+  },
 });
 
 cartSchema.virtual("id").get(function () {

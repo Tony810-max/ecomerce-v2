@@ -1,17 +1,32 @@
 const { Order } = require("../models/order");
-const { OrderItem } = require("../models/order-item");
 const { User } = require("../models/user");
 const { Cart } = require("../models/cart");
 const express = require("express");
-const mongoose = require("mongoose");
 const returnResponse = require("../helper/response");
 const router = express.Router();
+
+//get order with status
+router.get("/:idUser/status", async (req, res) => {
+  const status = req.query.status;
+  const idUser = req.params.idUser;
+  console.log(idUser);
+
+  const order = await Order.find({
+    user: idUser,
+    status: status,
+  }).populate("user");
+
+  if (!order)
+    return res.status(500).send("The cart for the given user was not found");
+
+  returnResponse(res, 200, { order: order });
+});
 
 //get list of orders
 router.get("/", async (req, res) => {
   try {
-    const orderList = await Order.find()
-      .populate("user", "-passwordHash -isAdmin")
+    const orderList = await Order.find({ deleteAt: null })
+      .populate("user", "-password -isAdmin")
       .populate("cartItems")
       .sort({ dateOrdered: -1 });
 
@@ -31,7 +46,7 @@ router.get("/:id", async (req, res) => {
   try {
     const order = await Order.findById(req.params.id).populate(
       "user",
-      "-passwordHash -isAdmin"
+      "-password -isAdmin"
     );
 
     if (!order) return res.status(404).json({ message: "no data" });
@@ -45,31 +60,25 @@ router.get("/:id", async (req, res) => {
   }
 });
 
-//get orders me
-router.get("/me/:idUser", async (req, res) => {
-  try {
-    const idUser = req.params.idUser;
-
-    if (!mongoose.Types.ObjectId.isValid(idUser)) {
-      return res.status(400).json({ message: "Invalid user ID" });
-    }
-
-    // Tìm tất cả các đơn hàng của người dùng
-    const orders = await Order.find({ user: idUser });
-
-    console.log(orders);
-
-    if (!orders || orders.length === 0) {
-      return res.status(404).json({ message: "No data" });
-    }
-
-    res.status(200).json(orders);
-  } catch (error) {
-    res.status(500).json({
-      error: error.message, // Trả về thông báo lỗi dễ đọc hơn
-      success: false,
+// get orders me
+router.get("/me/:userId", async (req, res) => {
+  const order = await Order.find({ user: req.params.userId, deleteAt: null })
+    .populate("user")
+    .populate({
+      path: "cartItems",
+      populate: {
+        path: "items",
+        populate: {
+          path: "product",
+          populate: "category",
+        },
+      },
     });
-  }
+
+  if (!order)
+    return res.status(500).send("The cart for the given user was not found");
+
+  returnResponse(res, 200, { order: order });
 });
 
 //update order status
@@ -88,25 +97,29 @@ router.patch("/:idOrder", async (req, res) => {
 });
 
 //delete a order
-router.delete("/:id", (req, res) => {
-  Order.findByIdAndDelete(req.params.id)
-    .then(async (order) => {
-      if (order) {
-        order.orderItems.map(async (orderItem) => {
-          await OrderItem.findByIdAndDelete(orderItem);
-        });
-        return res
-          .status(200)
-          .json({ success: true, message: "the order is deleted" });
-      } else {
-        return res
-          .status(404)
-          .json({ success: false, message: "order not found" });
-      }
-    })
-    .catch((err) => {
-      return res.status(400).json({ success: false, error: err });
-    });
+router.delete("/:idOrder", async (req, res) => {
+  const idOrder = req.params.idOrder;
+
+  const findOrder = await Order.findOne({ _id: idOrder });
+
+  if (!findOrder)
+    return returnResponse(res, 404, { message: "The order cannot be found" });
+
+  const updateOrder = await Order.findByIdAndUpdate(
+    idOrder,
+    {
+      deleteAt: Date.now(),
+      status: "Cancelled",
+    },
+    {
+      new: true,
+    }
+  );
+
+  if (!updateOrder)
+    return returnResponse(res, 404, { message: "The order cannot be deleted" });
+
+  returnResponse(res, 200, { message: "The order is deleted" });
 });
 
 router.post("/:idCart", async (req, res) => {
@@ -123,16 +136,23 @@ router.post("/:idCart", async (req, res) => {
 
     const order = new Order({
       cartItems: idCart,
-      shippingAddress: req.body.shippingAddress,
       phone: req.body.phone,
+      name: req.body.name,
       address: req.body.address,
-      status: req.body.status,
       totalPrice: req.body.totalPrice,
       user: req.body.user,
     });
 
     await order.save();
-    // await Cart.findOneAndDelete({ _id: idCart });
+    await Cart.findByIdAndUpdate(
+      { _id: idCart },
+      {
+        deleteAt: Date.now(),
+      },
+      {
+        new: true,
+      }
+    );
     returnResponse(res, 200, { message: "Order created successfully" });
   } catch (error) {
     returnResponse(res, 500, {
